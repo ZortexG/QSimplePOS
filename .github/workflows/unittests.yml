@@ -31,6 +31,10 @@ jobs:
       run: .\x64\Release\QSimplePOSTEST.exe
 
     - name: Download QtMsBuild Targets
-      run: git clone https://code.qt.io/qt-labs/vstools.g
+      run: git clone https://code.qt.io/qt-labs/vstools.git
     - name: Build the solution
-      run: msbuild QSimplePOS.sln /p:Configuration=Release /p:Platform=x64 /p:QtMsBuild="${{ github.workspace }}\vstools\msbuild"
+      run: |
+        $env:QtMsBuild = "${{ github.workspace }}\vstools\msbuild"
+        msbuild QSimplePOS.sln /p:Configuration=Release /p:Platform=x64
+      shell: pwsh
+     
