@@ -24,17 +24,15 @@ jobs:
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v2
 
+    - name: Download QtMsBuild Targets
+      run: git clone https://code.qt.io/qt-labs/vstools.git
+
     - name: Build the solution
-      run: msbuild QSimplePOS.sln /p:Configuration=Release /p:Platform=x64
+      run: |
+        $env:QtMsBuild = "${{ github.workspace }}\vstools\QtMsBuild"
+        msbuild QSimplePOS.sln /p:Configuration=Release /p:Platform=x64
+      shell: pwsh
       
     - name: Run Unit Tests
       run: .\x64\Release\QSimplePOSTEST.exe
-
-    - name: Download QtMsBuild Targets
-      run: git clone https://code.qt.io/qt-labs/vstools.git
-    - name: Build the solution
-      run: |
-        $env:QtMsBuild = "${{ github.workspace }}\vstools\msbuild"
-        msbuild QSimplePOS.sln /p:Configuration=Release /p:Platform=x64
-      shell: pwsh
      
