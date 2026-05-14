@@ -27,10 +27,48 @@ jobs:
     - name: Download QtMsBuild Targets
       run: git clone https://code.qt.io/qt-labs/vstools.git
 
-    - name: Generate QtMsBuild Targets
+    - name: Build QtVsTools.RegExpr
       run: |
         $solutionDir = (Resolve-Path .\vstools).Path + '\'
-        msbuild .\vstools\QtMSBuild\QtMSBuild.csproj /p:Configuration=Release /p:Platform=AnyCPU /p:SolutionDir="$solutionDir"
+        msbuild .\vstools\QtVsTools.RegExpr\QtVsTools.RegExpr.csproj /p:Configuration=Release /p:Platform=AnyCPU /p:SolutionDir="$solutionDir"
+      shell: pwsh
+
+    - name: Generate qt_tasks.targets
+      run: |
+        $buildConfiguration = 'Release'
+        $solutionDir = (Resolve-Path .\vstools).Path + '\'
+        $ttInput = Join-Path $solutionDir 'QtMSBuild\QtMsBuild\qt_tasks.targets_TT'
+        $ttTemp = Join-Path $env:RUNNER_TEMP 'qt_tasks.targets_TT'
+        $ttOutput = Join-Path $solutionDir 'QtMSBuild\QtMsBuild\qt_tasks.targets'
+
+        if (-not (Test-Path $ttInput)) { throw "Template file not found at $ttInput" }
+        $ttContent = (Get-Content $ttInput -Raw)
+        $ttContent = $ttContent.Replace('$(SolutionDir)', $solutionDir)
+        $ttContent = $ttContent.Replace('$(Configuration)', $buildConfiguration)
+        if ($ttContent -match '\$\(SolutionDir\)' -or $ttContent -match '\$\(Configuration\)') {
+          throw "Template variable replacement for qt_tasks.targets_TT was incomplete."
+        }
+        Set-Content $ttTemp -Value $ttContent -Encoding UTF8
+
+        $programFilesX86 = [Environment]::GetFolderPath('ProgramFilesX86')
+        if (-not $programFilesX86) { $programFilesX86 = $env:ProgramFiles }
+        if (-not $programFilesX86) { throw "Unable to resolve Program Files path." }
+
+        $vswhereCandidates = @(
+          (Join-Path $programFilesX86 'Microsoft Visual Studio\Installer\vswhere.exe'),
+          (Join-Path $env:ProgramFiles 'Microsoft Visual Studio\Installer\vswhere.exe')
+        )
+        $vswhere = $vswhereCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+        if (-not $vswhere) { throw "vswhere.exe not found." }
+        $vsPath = & $vswhere -latest -products * -property installationPath
+        if (-not $vsPath) { throw "Unable to locate Visual Studio installation path." }
+
+        $textTransform = Join-Path $vsPath 'Common7\IDE\TextTransform.exe'
+        if (-not (Test-Path $textTransform)) { throw "TextTransform.exe not found at $textTransform" }
+
+        & $textTransform -out $ttOutput $ttTemp
+        if ($LASTEXITCODE -ne 0) { throw "TextTransform.exe failed with exit code $LASTEXITCODE" }
+        if (-not (Test-Path $ttOutput)) { throw "qt_tasks.targets was not generated." }
       shell: pwsh
 
     - name: Build the solution
@@ -42,4 +80,3 @@ jobs:
       
     - name: Run Unit Tests
       run: .\x64\Release\QSimplePOSTEST.exe
-     
