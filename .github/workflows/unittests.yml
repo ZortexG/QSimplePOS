@@ -29,3 +29,8 @@ jobs:
       
     - name: Run Unit Tests
       run: .\x64\Release\QSimplePOSTEST.exe
+
+    - name: Download QtMsBuild Targets
+      run: git clone https://code.qt.io/qt-labs/vstools.g
+    - name: Build the solution
+      run: msbuild QSimplePOS.sln /p:Configuration=Release /p:Platform=x64 /p:QtMsBuild="${{ github.workspace }}\vstools\msbuild"
