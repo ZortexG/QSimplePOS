@@ -15,9 +15,9 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Install Qt
-      uses: jurplel/install-qt-action@v3
+      uses: jurplel/install-qt-action@v4
       with:
-        version: '6.11.0'     
+        version: '6.8.3'
         host: 'windows'
         target: 'desktop'
         arch: 'win64_msvc2022_64'
@@ -31,7 +31,7 @@ jobs:
       env:
         QtMsBuild: ${{ github.workspace }}\vstools\QtMSBuild\QtMsBuild
       run: |
-        msbuild QSimplePOS.sln /p:Configuration=Release /p:Platform=x64
+        msbuild QSimplePOS.sln /p:Configuration=Release /p:Platform=x64 /p:QtInstall="$env:QT_ROOT_DIR"
       shell: pwsh
       
     - name: Run Unit Tests
