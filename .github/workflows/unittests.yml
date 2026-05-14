@@ -38,17 +38,26 @@ jobs:
         $buildConfiguration = 'Release'
         $solutionDir = (Resolve-Path .\vstools).Path + '\'
         $ttInput = Join-Path $solutionDir 'QtMSBuild\QtMsBuild\qt_tasks.targets_TT'
-        $ttTemp = Join-Path $env:RUNNER_TEMP 'qt_tasks.targets_TT'
+        $commonInput = Join-Path $solutionDir 'common.tt'
+        $ttTempDir = Join-Path $env:RUNNER_TEMP 'qtmsbuild-tt'
+        $ttTemp = Join-Path $ttTempDir 'qt_tasks.targets_TT'
+        $commonTemp = Join-Path $ttTempDir 'common.tt'
         $ttOutput = Join-Path $solutionDir 'QtMSBuild\QtMsBuild\qt_tasks.targets'
 
         if (-not (Test-Path $ttInput)) { throw "Template file not found at $ttInput" }
+        if (-not (Test-Path $commonInput)) { throw "Template include not found at $commonInput" }
+        New-Item -ItemType Directory -Path $ttTempDir -Force | Out-Null
+
         $ttContent = (Get-Content $ttInput -Raw)
+        $ttContent = $ttContent.Replace('$(SolutionDir)\common.tt', $commonTemp)
         $ttContent = $ttContent.Replace('$(SolutionDir)', $solutionDir)
         $ttContent = $ttContent.Replace('$(Configuration)', $buildConfiguration)
         if ($ttContent -match '\$\(SolutionDir\)' -or $ttContent -match '\$\(Configuration\)') {
           throw "Template variable replacement for qt_tasks.targets_TT was incomplete."
         }
         Set-Content $ttTemp -Value $ttContent -Encoding UTF8
+
+        $commonContent = (Get-Content $commonInput -Raw)
 
         $programFilesX86 = [Environment]::GetFolderPath('ProgramFilesX86')
         if (-not $programFilesX86) { $programFilesX86 = $env:ProgramFiles }
@@ -63,10 +72,37 @@ jobs:
         $vsPath = & $vswhere -latest -products * -property installationPath
         if (-not $vsPath) { throw "Unable to locate Visual Studio installation path." }
 
+        $publicAssembliesDir = Join-Path $vsPath 'Common7\IDE\PublicAssemblies'
+        $interopDll = Join-Path $publicAssembliesDir 'Microsoft.VisualStudio.Interop.dll'
+        $envDteDll = Join-Path $publicAssembliesDir 'EnvDTE.dll'
+        $shellInteropDll = Join-Path $publicAssembliesDir 'Microsoft.VisualStudio.Shell.Interop.dll'
+        if (-not (Test-Path $interopDll)) { throw "Missing Microsoft.VisualStudio.Interop.dll at $interopDll" }
+        if (-not (Test-Path $envDteDll)) { throw "Missing EnvDTE.dll at $envDteDll" }
+        if (-not (Test-Path $shellInteropDll)) { throw "Missing Microsoft.VisualStudio.Shell.Interop.dll at $shellInteropDll" }
+
+        $commonContent = $commonContent.Replace('$(AssemblyRef_Microsoft_VisualStudio_Interop)', $interopDll)
+        $commonContent = $commonContent.Replace('$(AssemblyRef_EnvDTE)', $envDteDll)
+        $commonContent = $commonContent.Replace('$(VsSdk_Shell_Interop)', $shellInteropDll)
+        if ($commonContent -match '\$\(AssemblyRef_Microsoft_VisualStudio_Interop\)' -or
+            $commonContent -match '\$\(AssemblyRef_EnvDTE\)' -or
+            $commonContent -match '\$\(VsSdk_Shell_Interop\)') {
+          throw "Template variable replacement for common.tt was incomplete."
+        }
+        Set-Content $commonTemp -Value $commonContent -Encoding UTF8
+
+        $devEnvDir = Join-Path $vsPath 'Common7\IDE\'
+        $vcTargetsPath = Join-Path $vsPath 'MSBuild\Microsoft\VC\v170\'
+
         $textTransform = Join-Path $vsPath 'Common7\IDE\TextTransform.exe'
         if (-not (Test-Path $textTransform)) { throw "TextTransform.exe not found at $textTransform" }
 
-        & $textTransform -out $ttOutput $ttTemp
+        & $textTransform `
+          -a "!!SolutionDir!$solutionDir" `
+          -a "!!DevEnvDir!$devEnvDir" `
+          -a "!!Configuration!$buildConfiguration" `
+          -a "!!VisualStudioVersion!17.0" `
+          -a "!!VCTargetsPath!$vcTargetsPath" `
+          -out $ttOutput $ttTemp
         if ($LASTEXITCODE -ne 0) { throw "TextTransform.exe failed with exit code $LASTEXITCODE" }
         if (-not (Test-Path $ttOutput)) { throw "qt_tasks.targets was not generated." }
       shell: pwsh
