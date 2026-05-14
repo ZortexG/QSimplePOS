@@ -28,8 +28,9 @@ jobs:
       run: git clone https://code.qt.io/qt-labs/vstools.git
 
     - name: Build the solution
+      env:
+        QtMsBuild: ${{ github.workspace }}\vstools\QtMsBuild
       run: |
-        $env:QtMsBuild = "${{ github.workspace }}\vstools\QtMsBuild"
         msbuild QSimplePOS.sln /p:Configuration=Release /p:Platform=x64
       shell: pwsh
       
