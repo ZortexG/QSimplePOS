@@ -27,6 +27,12 @@ jobs:
     - name: Download QtMsBuild Targets
       run: git clone https://code.qt.io/qt-labs/vstools.git
 
+    - name: Generate QtMsBuild Targets
+      run: |
+        $solutionDir = (Resolve-Path .\vstools).Path + '\'
+        msbuild .\vstools\QtMSBuild\QtMSBuild.csproj /p:Configuration=Release /p:Platform=AnyCPU /p:SolutionDir="$solutionDir"
+      shell: pwsh
+
     - name: Build the solution
       env:
         QtMsBuild: ${{ github.workspace }}\vstools\QtMSBuild\QtMsBuild
