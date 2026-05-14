@@ -17,10 +17,10 @@ jobs:
     - name: Install Qt
       uses: jurplel/install-qt-action@v3
       with:
-        version: '5.15.2'        
+        version: '6.11.0'     
         host: 'windows'
         target: 'desktop'
-        arch: 'win64_msvc2019_64' 
+        arch: 'win64_msvc2022_64'
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v2
 
@@ -29,7 +29,7 @@ jobs:
 
     - name: Build the solution
       env:
-        QtMsBuild: ${{ github.workspace }}\vstools\QtMsBuild
+        QtMsBuild: ${{ github.workspace }}\vstools\QtMSBuild\QtMsBuild
       run: |
         msbuild QSimplePOS.sln /p:Configuration=Release /p:Platform=x64
       shell: pwsh
