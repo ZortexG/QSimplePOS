@@ -1,0 +1,31 @@
+name: Unit Tests
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v3
+      with:
+        version: '6.11.0'        
+        host: 'windows'
+        target: 'desktop'
+        arch: 'win64_msvc2022_64' 
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Build the solution
+      run: msbuild QSimplePOS.sln /p:Configuration=Release /p:Platform=x64
+      
+    - name: Run Unit Tests
+      run: .\x64\Release\QSimplePOSTEST.exe
